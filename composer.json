@@ -54,11 +54,11 @@
     },
     "scripts": {
         "setup": [
-            "composer install",
+            "composer install --no-interaction --prefer-dist --no-progress",
             "@php -r \"file_exists('.env') || copy('.env.example', '.env');\"",
-            "@php artisan key:generate",
+            "@php -r \"require 'vendor/autoload.php'; if (empty(Dotenv\\Dotenv::parse(file_get_contents('.env'))['APP_KEY'])) { passthru(escapeshellarg(PHP_BINARY).' artisan key:generate --no-interaction', \\$status); exit(\\$status); }\"",
             "@php artisan migrate --force",
-            "bun install",
+            "bun install --frozen-lockfile",
             "bun run build"
         ],
         "dev": [

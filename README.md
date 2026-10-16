@@ -18,6 +18,8 @@ The setup script installs dependencies, creates `.env`, generates an app key, ru
 
 Amp runs `.agents/setup` when preparing a fresh orb or refreshing a stale snapshot. It installs PHP 8.5 with PCOV, Composer 2, the Bun version pinned in `package.json`, and PostgreSQL 17 with pgvector and `pg_trgm`. Node 24+ comes from the orb image. Composer and Bun install from their lockfiles; matching snapshots reuse the installed toolchain, dependencies, generated Wayfinder types, and built assets without running setup again.
 
+The orb hook adds `upstream` pointing to `https://github.com/nunomaduro/dev-null.sh` when that remote is missing. It runs `composer setup --no-interaction`, then `php artisan boost:install --guidelines --skills --mcp --no-interaction` to prepare the application and install Laravel Boost's agent guidance, skills, and MCP configuration.
+
 Setup creates `.env` only when missing, generates an app key only when empty, and migrates the orb-local `devnull` database without resetting data. It also creates `testing` and enables search extensions in `template1` for parallel tests. It does not seed demo data or require GitHub/OpenAI credentials. Existing `.env` settings are preserved; the default database settings target this local database.
 
 PostgreSQL runs under systemd. `.agents/resume` only checks/restarts it after activation or wake; it never installs dependencies. The local `root` database role is passwordless on loopback, and database durability is disabled for speed. These settings are for disposable orbs, not production.
