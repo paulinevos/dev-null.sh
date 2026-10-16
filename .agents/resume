@@ -1,0 +1,9 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# Systemd owns the database, not the setup/agent process. Repair it after a wake
+# without reinstalling packages, rerunning migrations, or resetting local data.
+if ! sudo systemctl is-active --quiet postgresql@17-main; then
+    sudo systemctl start postgresql@17-main
+fi
+pg_isready -h 127.0.0.1 -p 5432

@@ -1,0 +1,108 @@
+#!/usr/bin/env bash
+set -euo pipefail
+cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.."
+
+# Keep step timings in Amp's setup log without exposing environment secrets.
+step() {
+    printf '\n==> %s\n' "$1"
+    shift
+    time "$@"
+}
+
+install_system_packages() {
+    local packages=(ca-certificates curl unzip php8.5-cli php8.5-curl php8.5-mbstring
+        php8.5-xml php8.5-zip php8.5-pgsql php8.5-gd php8.5-intl php8.5-bcmath
+        php8.5-pcov postgresql-17 postgresql-17-pgvector)
+    local missing=() package
+    for package in "${packages[@]}"; do
+        if [[ "$(dpkg-query -W -f='${Status}' "$package" 2>/dev/null || true)" != 'install ok installed' ]]; then
+            missing+=("$package")
+        fi
+    done
+    if ((${#missing[@]})); then
+        sudo install -d -m 0755 /etc/apt/keyrings
+        if [[ ! -f /etc/apt/sources.list.d/php.list ]]; then
+            curl -fsSL https://packages.sury.org/php/apt.gpg | sudo tee /etc/apt/keyrings/php.gpg >/dev/null
+            echo 'deb [signed-by=/etc/apt/keyrings/php.gpg] https://packages.sury.org/php/ bookworm main' |
+                sudo tee /etc/apt/sources.list.d/php.list >/dev/null
+        fi
+        if [[ ! -f /etc/apt/sources.list.d/pgdg.list ]]; then
+            curl -fsSL https://www.postgresql.org/media/keys/ACCC4CF8.asc |
+                sudo tee /etc/apt/keyrings/postgresql.asc >/dev/null
+            echo 'deb [signed-by=/etc/apt/keyrings/postgresql.asc] https://apt.postgresql.org/pub/repos/apt bookworm-pgdg main' |
+                sudo tee /etc/apt/sources.list.d/pgdg.list >/dev/null
+        fi
+        sudo apt-get update -qq
+        sudo env DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends "${missing[@]}"
+    fi
+    sudo update-alternatives --set php /usr/bin/php8.5
+    printf 'zend.assertions=1\nmemory_limit=512M\n' |
+        sudo tee /etc/php/8.5/cli/conf.d/99-orb.ini >/dev/null
+}
+
+install_tools() (
+    local temp bun_version
+    temp="$(mktemp -d)"
+    trap 'rm -rf "$temp"' EXIT
+    bun_version="$(node -p "require('./package.json').devEngines.packageManager.version")"
+    if [[ "$(bun --version 2>/dev/null || true)" != "$bun_version" ]]; then
+        curl -fsSL "https://github.com/oven-sh/bun/releases/download/bun-v${bun_version}/bun-linux-x64.zip" -o "$temp/bun.zip"
+        unzip -q "$temp/bun.zip" -d "$temp"
+        sudo install -m 0755 "$temp/bun-linux-x64/bun" /usr/local/bin/bun
+    fi
+    if ! command -v composer >/dev/null; then
+        curl -fsSL https://getcomposer.org/installer -o "$temp/composer-setup.php"
+        printf '%s  %s\n' "$(curl -fsSL https://composer.github.io/installer.sig)" "$temp/composer-setup.php" | sha384sum -c -
+        php "$temp/composer-setup.php" --2 --install-dir="$temp" --filename=composer
+        sudo install -m 0755 "$temp/composer" /usr/local/bin/composer
+    fi
+    # The orb provides Node; CI uses 24 and newer versions also support strip-types.
+    node -e 'if (Number(process.versions.node.split(".")[0]) < 24) throw new Error("Node 24+ is required")'
+    php --version
+    composer --version
+    bun --version
+    node --version
+)
+
+prepare_database() {
+    # Disposable orb data only: never apply these settings to a remote database.
+    printf "listen_addresses = 'localhost'\nfsync = off\nsynchronous_commit = off\n" |
+        sudo tee /etc/postgresql/17/main/conf.d/orb.conf >/dev/null
+    # Match .env.example's passwordless root account, restricted to loopback.
+    if ! sudo grep -Fqx '# Orb local development' /etc/postgresql/17/main/pg_hba.conf; then
+        sudo sed -i '1i# Orb local development\nhost all root 127.0.0.1/32 trust\nhost all root ::1/128 trust' /etc/postgresql/17/main/pg_hba.conf
+    fi
+    sudo systemctl enable --now postgresql@17-main >/dev/null
+    sudo -u postgres psql -v ON_ERROR_STOP=1 -c 'SELECT pg_reload_conf();'
+    if [[ "$(sudo -u postgres psql -tAc "SELECT 1 FROM pg_roles WHERE rolname = 'root'")" != 1 ]]; then
+        sudo -u postgres createuser --superuser root
+    fi
+    local database
+    for database in devnull testing; do
+        if [[ "$(sudo -u postgres psql -tAc "SELECT 1 FROM pg_database WHERE datname = '$database'")" != 1 ]]; then
+            sudo -u postgres createdb -O root "$database"
+        fi
+    done
+    # Parallel test databases inherit both extensions from template1.
+    for database in devnull testing template1; do
+        sudo -u postgres psql -d "$database" -v ON_ERROR_STOP=1 \
+            -c 'CREATE EXTENSION IF NOT EXISTS vector; CREATE EXTENSION IF NOT EXISTS pg_trgm;'
+    done
+}
+
+step 'System packages' install_system_packages
+step 'Bun and Composer' install_tools
+[[ -f .env ]] || cp -- .env.example .env
+step 'Composer dependencies (locked)' composer install --no-interaction --prefer-dist --no-progress
+step 'Bun dependencies (locked)' bun install --frozen-lockfile
+if grep -Eq "^APP_KEY=(\"\"|'')?$" .env; then
+    step 'Local application key' php artisan key:generate --no-interaction
+fi
+step 'Local PostgreSQL and extensions' prepare_database
+step 'Local database migrations' env DB_URL= DB_CONNECTION=pgsql DB_HOST=127.0.0.1 \
+    DB_PORT=5432 DB_DATABASE=devnull DB_USERNAME=root DB_PASSWORD= php artisan migrate --force --no-interaction
+if [[ ! -e public/storage && ! -L public/storage ]]; then
+    step 'Storage link' php artisan storage:link --no-interaction
+fi
+step 'Frontend assets and Wayfinder types' bun run build
+printf '\nOrb setup ready. Start the app with: amp orb services ensure\n'

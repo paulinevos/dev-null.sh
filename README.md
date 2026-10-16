@@ -14,6 +14,22 @@ composer setup
 
 The setup script installs dependencies, creates `.env`, generates an app key, runs migrations, and builds assets.
 
+### Amp orbs
+
+Amp runs `.agents/setup` when preparing a fresh orb or refreshing a stale snapshot. It installs PHP 8.5 with PCOV, Composer 2, the Bun version pinned in `package.json`, and PostgreSQL 17 with pgvector and `pg_trgm`. Node 24+ comes from the orb image. Composer and Bun install from their lockfiles; matching snapshots reuse the installed toolchain, dependencies, generated Wayfinder types, and built assets without running setup again.
+
+Setup creates `.env` only when missing, generates an app key only when empty, and migrates the orb-local `devnull` database without resetting data. It also creates `testing` and enables search extensions in `template1` for parallel tests. It does not seed demo data or require GitHub/OpenAI credentials. Existing `.env` settings are preserved; the default database settings target this local database.
+
+PostgreSQL runs under systemd. `.agents/resume` only checks/restarts it after activation or wake; it never installs dependencies. The local `root` database role is passwordless on loopback, and database durability is disabled for speed. These settings are for disposable orbs, not production.
+
+Start the supervised app preview and get its authenticated portal URL:
+
+```bash
+amp orb services ensure
+```
+
+The preview uses built assets, avoiding a second origin for Vite. Run `bun run build` after frontend changes. For local sign-in, enable `AUTO_LOGIN=true` as described below. Run `composer test` for the full checks, or `composer test:unit` for PHP coverage and JavaScript unit tests. Setup can be safely rerun with `.agents/setup`.
+
 ### Local auto-login
 
 To sign in locally without GitHub, set the following in `.env`:
