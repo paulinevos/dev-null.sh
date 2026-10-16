@@ -18,6 +18,7 @@ import {
     imageErrorFrom,
 } from '@/components/commit-image-picker';
 import { CommitImages } from '@/components/commit-images';
+import { CommitPastelButton } from '@/components/commit-pastel-button';
 import { CommitReportButton } from '@/components/commit-report-button';
 import { CommitStarButton } from '@/components/commit-star-button';
 import {
@@ -891,10 +892,16 @@ function CommitReply({
                         <ThreadActions
                             thread={thread}
                             actions={
-                                <CommitStarButton
-                                    commit={reply}
-                                    className="px-2 py-0.5"
-                                />
+                                <>
+                                    <CommitStarButton
+                                        commit={reply}
+                                        className="px-2 py-0.5"
+                                    />
+                                    <CommitPastelButton
+                                        commit={reply}
+                                        className="px-2 py-0.5"
+                                    />
+                                </>
                             }
                         />
                     )}

@@ -71,6 +71,7 @@ function commit(
         created_at: daysAgo(days),
         updated_at: daysAgo(days),
         stars_count: stars,
+        pasteis_count: 0,
         hot_score: stars + replies * 2,
         starred: false,
         user,

@@ -42,6 +42,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
  * @property-read CarbonInterface $updated_at
  * @property-read CarbonInterface|null $deleted_at
  * @property-read int $stars_count
+ * @property-read int $pasteis_count
  * @property-read bool $starred
  * @property-read User|null $user
  * @property-read Collection<int, User> $stars
@@ -74,6 +75,13 @@ final class Commit extends Model
     public const int RESTORABLE_SECONDS = 30;
 
     /**
+     * @var array<string, mixed>
+     */
+    protected $attributes = [
+        'pasteis_count' => 0,
+    ];
+
+    /**
      * @return array<string, string>
      */
     public function casts(): array
@@ -84,6 +92,7 @@ final class Commit extends Model
             'parent_id' => 'string',
             'root_id' => 'string',
             'hot_score' => 'float',
+            'pasteis_count' => 'integer',
             'body' => 'string',
             'status' => CommitStatus::class,
             'link_preview_id' => 'string',

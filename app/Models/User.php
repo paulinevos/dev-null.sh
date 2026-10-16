@@ -30,6 +30,10 @@ use Illuminate\Support\Facades\DB;
  * @property-read string|null $company
  * @property-read bool $has_sponsors_listing
  * @property-read int|null $preferred_lane
+ * @property-read bool $pasteis_mode
+ * @property-read int $pasteis_received
+ * @property-read int $pasteis_given_today
+ * @property-read CarbonInterface|null $pasteis_given_on
  * @property-read string|null $pinned_commit_id
  * @property-read Log $log
  * @property-read CarbonInterface|null $onboarded_at
@@ -58,6 +62,10 @@ use Illuminate\Support\Facades\DB;
     'email',
     'remember_token',
     'preferred_lane',
+    'pasteis_mode',
+    'pasteis_received',
+    'pasteis_given_today',
+    'pasteis_given_on',
     'pinned_commit_id',
     'github_synced_at',
     'log',
@@ -71,11 +79,17 @@ final class User extends Authenticatable
 
     use HasUuids;
 
+    public const int DAILY_PASTEIS = 10;
+
     /**
      * @var array<string, mixed>
      */
     protected $attributes = [
         'log' => Log::Following->value,
+        'pasteis_mode' => false,
+        'pasteis_received' => 0,
+        'pasteis_given_today' => 0,
+        'pasteis_given_on' => null,
     ];
 
     /**
@@ -96,6 +110,10 @@ final class User extends Authenticatable
             'company' => 'string',
             'has_sponsors_listing' => 'boolean',
             'preferred_lane' => 'integer',
+            'pasteis_mode' => 'boolean',
+            'pasteis_received' => 'integer',
+            'pasteis_given_today' => 'integer',
+            'pasteis_given_on' => 'date',
             'pinned_commit_id' => 'string',
             'log' => Log::class,
             'onboarded_at' => 'datetime',
@@ -311,6 +329,11 @@ final class User extends Authenticatable
     public function mutedIds(): QueryBuilder
     {
         return $this->muting()->newPivotQuery()->select('muted_id');
+    }
+
+    public function pasteisRemaining(): int
+    {
+        return self::DAILY_PASTEIS - ($this->pasteis_given_on?->isToday() ? $this->pasteis_given_today : 0);
     }
 
     public function lane(): int

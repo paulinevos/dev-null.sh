@@ -6,6 +6,7 @@ import CommitController from '@/actions/App/Http/Controllers/CommitController';
 import { BookmarkButton } from '@/components/bookmark-button';
 import { CommitBody } from '@/components/commit-body';
 import { CommitImages } from '@/components/commit-images';
+import { CommitPastelButton } from '@/components/commit-pastel-button';
 import { CommitPoll } from '@/components/commit-poll';
 import { CommitQuoteButton } from '@/components/commit-quote-button';
 import { CommitReportButton } from '@/components/commit-report-button';
@@ -362,6 +363,7 @@ export function CommitCard({
                             {commit.replies_count === undefined ? (
                                 <div className="mt-1.5 -ml-1.5 flex items-center gap-0.5">
                                     <CommitStarButton commit={commit} />
+                                    <CommitPastelButton commit={commit} />
                                     <CommitQuoteButton
                                         commit={commit}
                                         keyShortcut="q"
@@ -376,6 +378,10 @@ export function CommitCard({
                                     actions={
                                         <>
                                             <CommitStarButton
+                                                commit={commit}
+                                                className="px-2 py-0.5"
+                                            />
+                                            <CommitPastelButton
                                                 commit={commit}
                                                 className="px-2 py-0.5"
                                             />
