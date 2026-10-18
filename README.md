@@ -20,6 +20,8 @@ The setup script installs dependencies, creates `.env`, generates an app key, ru
 
 With `APP_ENV=local`, run `composer dev`, visit `http://localhost:8000` (or your configured `APP_URL`), and sign in: a modal asks for a username and signs you in as that user, creating it if it doesn't exist yet. GitHub isn't involved at all. The routes are only registered in the local environment, see `routes/web.php`.
 
+Local requests through a loopback reverse proxy (`127.0.0.1` or `::1`) trust its forwarded headers, so HTTPS portals keep redirects and generated links on HTTPS. This local-only configuration does not change production proxy handling.
+
 ### GitHub login
 
 Outside the local environment, users sign in with GitHub. Create a [GitHub OAuth app](https://github.com/settings/developers) with the callback URL `{APP_URL}/auth/github/callback`, then set `GITHUB_CLIENT_ID` and `GITHUB_CLIENT_SECRET` in `.env`.

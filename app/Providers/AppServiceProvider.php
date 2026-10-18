@@ -10,6 +10,7 @@ use App\Services\CodeTheme;
 use App\Services\DnsResolvers\SystemDnsResolver;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Middleware\TrustProxies;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\RateLimiter;
@@ -28,6 +29,10 @@ final class AppServiceProvider extends ServiceProvider
 
     public function boot(): void
     {
+        if ($this->app->isLocal()) {
+            TrustProxies::at(['127.0.0.1', '::1']);
+        }
+
         $this->bootRateLimitingDefaults();
 
         $this->bootExceptionHandling();

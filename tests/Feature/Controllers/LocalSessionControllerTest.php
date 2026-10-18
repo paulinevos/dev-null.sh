@@ -59,6 +59,24 @@ it('creates a user for a new username and signs them in', function (): void {
     $this->assertAuthenticatedAs($user);
 });
 
+it('uses forwarded HTTPS for local sign-in only from loopback proxies', function (string $proxy, string $scheme): void {
+    registerRoutes('local');
+    app()->register(App\Providers\AppServiceProvider::class, force: true);
+
+    $user = User::factory()->create(['username' => 'octocat', 'log' => Log::Following]);
+
+    $this->withServerVariables(['REMOTE_ADDR' => $proxy])
+        ->withHeader('X-Forwarded-Proto', 'https')
+        ->post('http://localhost/login/local', ['_token' => session()->token(), 'username' => 'octocat'])
+        ->assertRedirect($scheme.'://localhost/log/following');
+
+    $this->assertAuthenticatedAs($user);
+})->with([
+    'IPv4 loopback' => ['127.0.0.1', 'https'],
+    'IPv6 loopback' => ['::1', 'https'],
+    'untrusted client' => ['203.0.113.10', 'http'],
+]);
+
 it('signs in as the existing user of a username', function (): void {
     registerRoutes('local');
 
