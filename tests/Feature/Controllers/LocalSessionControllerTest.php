@@ -5,6 +5,7 @@ declare(strict_types=1);
 use App\Enums\Log;
 use App\Http\Controllers\SessionController;
 use App\Models\User;
+use App\Providers\AppServiceProvider;
 use Illuminate\Routing\Router;
 use Illuminate\Support\Facades\Route;
 
@@ -61,7 +62,7 @@ it('creates a user for a new username and signs them in', function (): void {
 
 it('uses forwarded HTTPS for local sign-in only from loopback proxies', function (string $proxy, string $scheme): void {
     registerRoutes('local');
-    app()->register(App\Providers\AppServiceProvider::class, force: true);
+    app()->register(AppServiceProvider::class, force: true);
 
     $user = User::factory()->create(['username' => 'octocat', 'log' => Log::Following]);
 
