@@ -324,7 +324,8 @@ export function RemotesSetting() {
                     </Button>
                 </div>
                 <p className="text-sm text-muted-foreground">
-                    Saved in this browser.
+                    Navi randomly says “Hey!” or “Listen!”. Saved in this
+                    browser.
                 </p>
             </div>
         </section>

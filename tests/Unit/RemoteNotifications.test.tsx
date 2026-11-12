@@ -128,17 +128,23 @@ test('ignores backlog, own messages, org events, read conversations and active m
     assert.deepEqual(assign.mock.calls, [['/remotes/remote-one']]);
 });
 
-test('new messages use the saved sound immediately', async () => {
+test('new messages use the saved sound immediately and choose either Navi clip independently', async () => {
     const alerts = reader();
     await alerts.receive([], () => false);
+    const random = vi.spyOn(Math, 'random');
     const cases = [
-        ['msn', '/sounds/remote.mp3'],
-        ['icq', '/sounds/icq.mp3'],
-        ['aim', '/sounds/aim.mp3'],
+        ['msn', 0, '/sounds/remote.mp3'],
+        ['icq', 0, '/sounds/icq.mp3'],
+        ['aim', 0, '/sounds/aim.mp3'],
+        ['navi', 0.49, '/sounds/navi-hey.mp3'],
+        ['navi', 0.5, '/sounds/navi-listen.mp3'],
+        ['navi', 0.999, '/sounds/navi-listen.mp3'],
+        ['navi', 0, '/sounds/navi-hey.mp3'],
     ] as const;
 
-    for (const [index, [choice, source]] of cases.entries()) {
+    for (const [index, [choice, roll, source]] of cases.entries()) {
         assert.equal(setRemoteSound('me', choice), true);
+        random.mockReturnValue(roll);
         time += 10_000;
         await alerts.receive([conversation(20 + index)], () => false);
 
@@ -149,11 +155,9 @@ test('new messages use the saved sound immediately', async () => {
 
 test('sound choices stay account-local, reject unknown stored choices, and report blocked storage', () => {
     assert.equal(remoteSound('me'), 'msn');
-    assert.equal(setRemoteSound('me', 'aim'), true);
-    assert.equal(remoteSound('me'), 'aim');
+    assert.equal(setRemoteSound('me', 'navi'), true);
+    assert.equal(remoteSound('me'), 'navi');
     assert.equal(remoteSound('other'), 'msn');
-    storage.set('remote-sound:me', 'navi');
-    assert.equal(remoteSound('me'), 'msn');
     storage.set('remote-sound:me', 'unknown');
     assert.equal(remoteSound('me'), 'msn');
     storage.set('remote-sound:me', 'constructor');
